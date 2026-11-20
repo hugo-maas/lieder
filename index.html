@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Emmas Strophe üben</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: warm, playful, calm – a child practising her solo
+   IDEA: an Advent window at night; her voice is a little light that climbs to the star
+   PICTURE: live pitch trail across glowing note lines, the target line ends in a star that fills up
+   COLOUR and TYPE: midnight blue, candle gold, soft green for "genau"; Baloo 2
+   LAYOUT: title, big stage, syllable chips, controls; one column */
+:root{color-scheme:dark;--bg:#0f1a3a;--bg2:#1c2b58;--ink:#f6efe0;--mute:#b9c1dc;--gold:#ffc94d;--green:#5ee0a0}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#22356b,var(--bg));color:var(--ink);font:16px/1.5 "Baloo 2",system-ui,sans-serif;min-height:100vh;overflow-x:clip}
+main{max-width:860px;margin:0 auto;padding:clamp(16px,4vw,40px) max(4vw,14px) 40px}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.05;margin:0 0 4px;font-weight:700;text-wrap:balance}
+.sub{color:var(--mute);margin:0 0 16px}
+.stage{position:relative;height:clamp(260px,46vh,420px);background:linear-gradient(#0a1330,#15244f);border-radius:22px;overflow:hidden;box-shadow:inset 0 0 0 1px #ffffff18,0 12px 40px #0006}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.hint{position:absolute;left:16px;top:10px;font-size:clamp(20px,4.5vw,30px);font-weight:700;max-width:60%}
+.target{position:absolute;right:16px;top:10px;text-align:right;color:var(--mute);font-size:14px}
+.target b{display:block;color:var(--gold);font-size:clamp(26px,5vw,36px);line-height:1}
+.lyrics{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}
+.syl{font:inherit;font-size:18px;border:0;border-radius:12px;padding:6px 11px;min-height:44px;background:var(--bg2);color:var(--ink);cursor:pointer;position:relative}
+.syl.high{box-shadow:inset 0 -3px 0 var(--gold)}
+.syl.now{background:var(--gold);color:#1a1405}
+.syl.done::after{content:"★";position:absolute;top:-9px;right:-4px;color:var(--gold);font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+.b{font:inherit;font-size:17px;font-weight:700;border:0;border-radius:14px;min-height:48px;padding:8px 18px;cursor:pointer;background:var(--bg2);color:var(--ink)}
+.b.main{background:var(--gold);color:#1a1405}
+.b.on{background:var(--green);color:#06241a}
+button:focus-visible,select:focus-visible{outline:3px solid #fff;outline-offset:2px}
+select{font:inherit;font-size:16px;min-height:44px;border-radius:12px;background:var(--bg2);color:var(--ink);border:0;padding:0 10px}
+label{color:var(--mute)}
+.note{color:var(--mute);font-size:14px;margin-top:18px;max-width:68ch}
+.warn{background:#3b2740;border-radius:14px;padding:10px 14px;margin-top:10px;display:none}
+</style></head><body><main>
+<h1>Strophe 4 – Emmas Solo</h1>
+<p class="sub">Kleines Adventslied · „Ich denke an Frieden, ich denke an Licht“</p>
+<div class="stage"><canvas id="cv"></canvas><div class="hint" id="hint">Tippe auf ein Wort</div><div class="target">Zielton<b id="tname">–</b></div></div>
+<div class="lyrics" id="lyr"></div>
+<div class="row">
+<button class="b main" id="mic">Mitsingen starten</button>
+<button class="b" id="again">Ton nochmal</button>
+<button class="b" id="prev">Zurück</button>
+<button class="b" id="next">Weiter</button>
+<button class="b" id="play">Ganze Stelle anhören</button>
+</div>
+<div class="row">
+<label for="part">Teil</label>
+<select id="part"><option value="hi">Nur die hohe Stelle</option><option value="all">Ganze Strophe</option></select>
+<label for="key">Tonart</label>
+<select id="key"><option value="0">Original (C-Dur)</option><option value="-1">½ Ton tiefer</option><option value="-2">1 Ton tiefer (B-Dur)</option><option value="-3">1½ Töne tiefer</option></select>
+</div>
+<div class="warn" id="warn">Das Mikrofon ist hier gesperrt – in der Vorschau kann die Seite nicht zuhören. Öffne die Datei <b>emma-strophe.html</b> in Chrome am Laptop oder Tablet, dann klappt „Mitsingen“. Anhören und Töne antippen gehen überall.</div>
+<p class="note">So geht’s: Ton anhören, dann nachsingen. Der Lichtpunkt zeigt Emmas Stimme. Liegt er auf der goldenen Linie, wird er grün – kurz halten, dann füllt sich der Stern und der nächste Ton kommt. Gold unterstrichen sind die hohen Töne (c'' und d''). Noten vom Liedblatt abgelesen; Kopfhörer sind nicht nötig, die Seite hört nicht zu, während sie selbst spielt.</p>
+</main>
+<script>
+{
+const N=[[71,1,"Ich"],[72,1,"den"],[72,1,"ke"],[72,1,"an"],[71,1,"Frie"],[69,1,"den,"],[71,1,"ich"],[71,1,"den"],[74,1,"ke"],[71,1,"an"],[72,3,"Licht."],[71,1,"Die"],[69,.5,"Weih"],[69,.5,"nachts"],[69,1,"zeit,"],[69,.5,"denn"],[69,.5,"die"],[67,.5,"Weih"],[62,.5,"nachts"],[62,1,"zeit,"],[62,.5,"die"],[64,.5,"–"],[65,1,"ist"],[64,1,"nicht"],[62,1,"mehr"],[60,3,"weit."]];
+const NAMES=["c","cis","d","es","e","f","fis","g","gis","a","b","h"];
+const nm=m=>NAMES[((m%12)+12)%12]+(m>=72?"''":"'");
+const $=id=>document.getElementById(id);
+const cv=$("cv"),ctx=cv.getContext("2d");
+let idx=0,shift=0,part="hi",done=new Set(),ac=null,listening=false,an=null,buf=null,muteUntil=0,hold=0,lastT=0,trail=[],recent=[],playing=false,timers=[],advancing=false;
+const range=()=>part==="hi"?[0,11]:[0,N.length];
+const tgt=()=>N[idx][0]+shift;
+const hz=m=>440*2**((m-69)/12);
+
+function render(){
+  const [a,b]=range();let h="";
+  for(let i=a;i<b;i++)h+=`<button class="syl${N[i][0]>=72?" high":""}${i===idx?" now":""}${done.has(i)?" done":""}" data-i="${i}">${N[i][2]}</button>`;
+  $("lyr").innerHTML=h;$("tname").textContent=nm(tgt());
+}
+function ensure(){if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();return ac}
+function tone(m,t,d){
+  const o=ac.createOscillator(),o2=ac.createOscillator(),g=ac.createGain(),f=ac.createBiquadFilter();
+  o.type="triangle";o2.type="sine";o.frequency.value=o2.frequency.value=hz(m);
+  f.type="lowpass";f.frequency.value=2400;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.28,t+.03);g.gain.linearRampToValueAtTime(.18,t+.25);
+  g.gain.setValueAtTime(.18,t+Math.max(.05,d-.08));g.gain.linearRampToValueAtTime(0,t+d);
+  o.connect(f);o2.connect(f);f.connect(g);g.connect(ac.destination);o.start(t);o2.start(t);o.stop(t+d+.05);o2.stop(t+d+.05);
+  muteUntil=Math.max(muteUntil,performance.now()+(t-ac.currentTime+d+.2)*1000);
+}
+function playNote(){ensure();tone(tgt(),ac.currentTime+.02,.9);hold=0}
+function stopAll(){timers.forEach(clearTimeout);timers=[];playing=false;$("play").textContent="Ganze Stelle anhören"}
+function playAll(){
+  if(playing){stopAll();return}
+  ensure();playing=true;$("play").textContent="Stopp";
+  const [a,b]=range(),beat=.62;let t=ac.currentTime+.1,start=t;
+  for(let i=a;i<b;i++){const d=N[i][1]*beat;tone(N[i][0]+shift,t,d*.95);
+    timers.push(setTimeout(()=>{idx=i;render()},(t-start)*1000+100));t+=d}
+  timers.push(setTimeout(()=>{stopAll();idx=a;render()},(t-start)*1000+300));
+}
+function go(d){const [a,b]=range();idx=Math.min(b-1,Math.max(a,idx+d));hold=0;render();playNote()}
+
+function detect(x,sr){
+  const n=x.length;let r=0;for(let i=0;i<n;i++)r+=x[i]*x[i];r=Math.sqrt(r/n);if(r<.012)return -1;
+  let r1=0,r2=n-1;for(let i=0;i<n/2;i++)if(Math.abs(x[i])<.2){r1=i;break}
+  for(let i=1;i<n/2;i++)if(Math.abs(x[n-i])<.2){r2=n-i;break}
+  const s=x.subarray(r1,r2),m=s.length,L=Math.min(m,Math.floor(sr/140)),c=new Float32Array(L);
+  for(let i=0;i<L;i++){let v=0;for(let j=0;j<m-i;j++)v+=s[j]*s[j+i];c[i]=v}
+  let d=0;while(d<L-1&&c[d]>c[d+1])d++;let mx=-1,p=-1;for(let i=d;i<L;i++)if(c[i]>mx){mx=c[i];p=i}
+  if(p<1||p>=L-1)return -1;const a=(c[p-1]+c[p+1]-2*c[p])/2,b=(c[p+1]-c[p-1])/2;const T=a?p-b/(2*a):p;
+  const f=sr/T;return f>150&&f<1200?f:-1;
+}
+async function toggleMic(){
+  if(listening){listening=false;$("mic").textContent="Mitsingen starten";$("mic").classList.remove("on");return}
+  try{
+    ensure();
+    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    if(!an){an=ac.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);ac.createMediaStreamSource(st).connect(an)}
+    listening=true;$("mic").textContent="Mitsingen stoppen";$("mic").classList.add("on");$("warn").style.display="none";playNote();
+  }catch(e){$("warn").style.display="block"}
+}
+function success(){
+  done.add(idx);advancing=true;ensure();tone(tgt()+12,ac.currentTime+.05,.12);tone(tgt()+19,ac.currentTime+.17,.18);render();
+  const [,b]=range();
+  setTimeout(()=>{advancing=false;hold=0;if(idx<b-1){idx++;render();playNote()}else{$("hint").textContent="Geschafft – alle Sterne!";}},800);
+}
+function frame(t){
+  const dt=Math.min(.1,(t-lastT)/1000);lastT=t;let c=null;
+  if(listening&&an&&t>muteUntil&&!advancing){
+    an.getFloatTimeDomainData(buf);const f=detect(buf,ac.sampleRate);
+    if(f>0){recent.push(f);if(recent.length>5)recent.shift();const med=[...recent].sort((a,b)=>a-b)[recent.length>>1];
+      c=1200*Math.log2(med/hz(tgt()));c=((c+600)%1200+1200)%1200-600}else recent=[];
+  }
+  if(listening){
+    trail.push(c);if(trail.length>400)trail.shift();
+    if(c!==null){const ok=Math.abs(c)<35;hold=ok?hold+dt:Math.max(0,hold-dt*.5);
+      $("hint").textContent=ok?"Genau!":c<0?"etwas höher ↑":"etwas tiefer ↓";if(hold>=.6)success()}
+    else if(!advancing&&t>muteUntil)$("hint").textContent="Jetzt du!";
+  }
+  draw(c);requestAnimationFrame(frame);
+}
+function draw(c){
+  const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr}
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const mid=H*.56,sc=H*.4/700,y=v=>mid-v*sc,xr=W-56;
+  ctx.font="13px 'Baloo 2',system-ui";ctx.textBaseline="middle";
+  for(let s=-6;s<=6;s++){if(!s)continue;ctx.strokeStyle="#ffffff12";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y(s*100));ctx.lineTo(W,y(s*100));ctx.stroke()}
+  ctx.fillStyle="#ffffff55";ctx.fillText("höher",10,y(560));ctx.fillText("tiefer",10,y(-560));
+  ctx.strokeStyle="#ffc94d";ctx.lineWidth=3;ctx.shadowColor="#ffc94d";ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(xr-22,mid);ctx.stroke();ctx.shadowBlur=0;
+  star(xr,mid,20,Math.min(1,hold/.6));
+  for(let i=trail.length-1,x=xr-30;i>=0&&x>0;i--,x-=2){const v=trail[i];if(v===null)continue;
+    ctx.fillStyle=Math.abs(v)<35?"#5ee0a0":"#ffc94d";ctx.globalAlpha=.25+.6*(x/xr);ctx.beginPath();ctx.arc(x,y(Math.max(-680,Math.min(680,v))),3.2,0,7);ctx.fill()}
+  ctx.globalAlpha=1;
+  if(c!==null){const ok=Math.abs(c)<35,yy=y(Math.max(-680,Math.min(680,c)));ctx.fillStyle=ok?"#5ee0a0":"#fff2c4";ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=24;ctx.beginPath();ctx.arc(xr-30,yy,11,0,7);ctx.fill();ctx.shadowBlur=0}
+}
+function star(cx,cy,r,p){
+  ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;ctx.lineTo(cx+rr*Math.cos(a),cy+rr*Math.sin(a))}ctx.closePath();
+  ctx.save();ctx.clip();ctx.fillStyle="#ffffff18";ctx.fillRect(cx-r,cy-r,2*r,2*r);ctx.fillStyle="#ffc94d";ctx.fillRect(cx-r,cy+r-2*r*p,2*r,2*r*p);ctx.restore();
+  ctx.strokeStyle="#ffc94d";ctx.lineWidth=2;ctx.stroke();
+}
+$("lyr").addEventListener("click",e=>{const b=e.target.closest(".syl");if(!b)return;stopAll();idx=+b.dataset.i;hold=0;render();playNote()});
+$("mic").addEventListener("click",toggleMic);
+$("again").addEventListener("click",()=>{stopAll();playNote()});
+$("prev").addEventListener("click",()=>{stopAll();go(-1)});
+$("next").addEventListener("click",()=>{stopAll();go(1)});
+$("play").addEventListener("click",playAll);
+$("part").addEventListener("change",e=>{stopAll();part=e.target.value;idx=range()[0];done.clear();hold=0;render()});
+$("key").addEventListener("change",e=>{shift=+e.target.value;hold=0;render();if(ac)playNote()});
+render();requestAnimationFrame(frame);
+}
+</script>
+</body></html>
