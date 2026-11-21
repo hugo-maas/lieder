@@ -110,7 +110,7 @@ async function micOn(){
     const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
     if(!an){an=ac.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);ac.createMediaStreamSource(st).connect(an)}
     listening=true;$("warn").style.display="none";return true;
-  }catch(e){$("warn").style.display="block";return false}
+  }catch(e){const w=$("warn");w.innerHTML="Mikrofon nicht verfügbar ("+(e&&e.name||"Fehler")+(e&&e.message?": "+e.message:"")+"). Tippe links neben der Adresse auf das Symbol → Berechtigungen → Mikrofon → Zulassen, dann die Seite neu laden.";w.style.display="block";w.scrollIntoView({behavior:"smooth",block:"center"});return false}
 }
 
 /* ---- Ton für Ton ---- */
@@ -138,7 +138,7 @@ function success(){
 /* ---- Im Takt ---- */
 async function startRun(){
   if(run&&!run.over){stopRun();return}
-  stopAll();if(!(await micOn()))return;
+  stopAll();ensure();const micOk=await micOn();
   const bpm=+$("tempo").value,beat=60/bpm,[a,b]=range(),t0=ac.currentTime+.3+3*beat;
   let s=0;const notes=[];for(let i=a;i<b;i++){const d=N[i][1]*beat;notes.push({i,m:N[i][0]+shift,s,e:s+d,txt:N[i][2],v:0,ok:0});s+=d}
   const nodes=[];
@@ -146,7 +146,7 @@ async function startRun(){
   for(let k=0;k<3;k++)nodes.push(...tone(96,t0-(3-k)*beat,.05,.12,false));
   if($("mel").checked)for(const n of notes)nodes.push(...tone(n.m,t0+n.s,(n.e-n.s)*.95,.14,false));
   run={t0,beat,notes,end:s,trail:[],nodes,over:false,now:-3*beat};
-  done.clear();idx=a;render();$("go").textContent="Stopp";$("go").classList.add("on");
+  run.mic=micOk;done.clear();idx=a;render();$("go").textContent="Stopp";$("go").classList.add("on");
 }
 function stopRun(){if(!run)return;for(const o of run.nodes)try{o.stop()}catch(e){}finish(false)}
 function finish(full=true){
@@ -193,7 +193,7 @@ function taktFrame(dt){
     if(n){if(idx!==n.i){idx=n.i;render()}
       if(fm){let v=69+12*Math.log2(fm/440);v+=12*Math.round((n.m-v)/12);const ok=Math.abs(v-n.m)*100<tolC;
         run.trail.push({t:now,v,ok});n.v+=dt;if(ok)n.ok+=dt;$("hint").textContent=ok?"Genau!":v<n.m?"höher ↑":"tiefer ↓"}
-      else $("hint").textContent=n.txt}
+      else $("hint").textContent=run.mic?n.txt:n.txt+" (ohne Mikrofon)"}
     if(now>run.end+.4)finish(true);
   }
   drawTakt();
