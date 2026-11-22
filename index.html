@@ -39,6 +39,7 @@ label{color:var(--mute)}
 .note{color:var(--mute);font-size:14px;margin-top:18px;max-width:68ch}
 .warn{background:#3b2740;border-radius:14px;padding:10px 14px;margin-top:10px;display:none}
 [hidden]{display:none!important}
+.meter{display:inline-block;width:90px;height:10px;border-radius:5px;background:var(--bg2);overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--green);transition:width .08s}
 </style></head><body><main>
 <h1>Strophe 4 – Emmas Solo</h1>
 <p class="sub">Kleines Adventslied · „Ich denke an Frieden, ich denke an Licht“</p>
@@ -65,6 +66,9 @@ label{color:var(--mute)}
 <select id="key"><option value="0">Original (C-Dur)</option><option value="-1">½ Ton tiefer</option><option value="-2">1 Ton tiefer (B-Dur)</option><option value="-3">1½ Töne tiefer</option></select>
 <label for="tol">Genauigkeit</label>
 <select id="tol"><option value="70" selected>locker</option><option value="35">genau</option></select>
+<label for="sens">Mikrofon</label>
+<select id="sens"><option value=".001">sehr empfindlich</option><option value=".002" selected>empfindlich</option><option value=".006">normal</option></select>
+<span class="meter" aria-hidden="true"><i id="lvl"></i></span>
 </div>
 <div class="warn" id="warn">Das Mikrofon ist hier gesperrt. Öffne die Seite direkt im Browser (z. B. hugo-maas.github.io/lieder) und erlaube das Mikrofon. Anhören und Töne antippen gehen überall.</div>
 <p class="note"><b>Im Takt mitsingen:</b> Die goldenen Balken sind die Melodie, sie laufen von rechts zur Linie. Erst klingt der Anfangston, dann zählt es 3 – 2 – 1. Emmas Stimme wird als Lichtspur darübergemalt – grün, wenn sie passt. Niemand wartet, es geht einfach weiter; am Ende gibt es Sterne für die getroffenen Töne.<br><b>Ton für Ton:</b> Ton anhören, nachsingen, kurz halten – dann kommt der nächste. Gold unterstrichen sind die hohen Töne (c'' und d'').</p>
@@ -76,7 +80,7 @@ const NAMES=["c","cis","d","es","e","f","fis","g","gis","a","b","h"];
 const nm=m=>NAMES[((m%12)+12)%12]+(m>=72?"''":"'");
 const $=id=>document.getElementById(id);
 const cv=$("cv"),ctx=cv.getContext("2d");
-let mode="takt",idx=0,shift=0,part="hi",tolC=70,done=new Set(),ac=null,listening=false,an=null,buf=null,muteUntil=0,hold=0,lastT=0,trail=[],recent=[],playing=false,timers=[],advancing=false,run=null,fm=null;
+let sens=.002,level=0,mode="takt",idx=0,shift=0,part="hi",tolC=70,done=new Set(),ac=null,listening=false,an=null,buf=null,muteUntil=0,hold=0,lastT=0,trail=[],recent=[],playing=false,timers=[],advancing=false,run=null,fm=null;
 const range=()=>part==="hi"?[0,11]:[0,N.length];
 const tgt=()=>N[idx][0]+shift;
 const hz=m=>440*2**((m-69)/12);
@@ -107,7 +111,7 @@ async function micOn(){
   if(listening)return true;
   try{
     ensure();
-    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
+    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:true}});
     if(!an){an=ac.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);ac.createMediaStreamSource(st).connect(an)}
     listening=true;$("warn").style.display="none";return true;
   }catch(e){const w=$("warn");w.innerHTML="Mikrofon nicht verfügbar ("+(e&&e.name||"Fehler")+(e&&e.message?": "+e.message:"")+"). Tippe links neben der Adresse auf das Symbol → Berechtigungen → Mikrofon → Zulassen, dann die Seite neu laden.";w.style.display="block";w.scrollIntoView({behavior:"smooth",block:"center"});return false}
@@ -157,19 +161,22 @@ function finish(full=true){
 
 /* ---- Tonhöhe erkennen ---- */
 function detect(x,sr){
-  const n=x.length;let r=0;for(let i=0;i<n;i++)r+=x[i]*x[i];r=Math.sqrt(r/n);if(r<.012)return -1;
-  let r1=0,r2=n-1;for(let i=0;i<n/2;i++)if(Math.abs(x[i])<.2){r1=i;break}
-  for(let i=1;i<n/2;i++)if(Math.abs(x[n-i])<.2){r2=n-i;break}
+  const n=x.length;let r=0,pk=0;for(let i=0;i<n;i++){r+=x[i]*x[i];const a=Math.abs(x[i]);if(a>pk)pk=a}r=Math.sqrt(r/n);
+  level=r;if(r<sens)return -1;
+  const th=.2*pk;let r1=0,r2=n-1;for(let i=0;i<n/2;i++)if(Math.abs(x[i])<th){r1=i;break}
+  for(let i=1;i<n/2;i++)if(Math.abs(x[n-i])<th){r2=n-i;break}
   const s=x.subarray(r1,r2),m=s.length,L=Math.min(m,Math.floor(sr/140)),c=new Float32Array(L);
   for(let i=0;i<L;i++){let v=0;for(let j=0;j<m-i;j++)v+=s[j]*s[j+i];c[i]=v}
   let d=0;while(d<L-1&&c[d]>c[d+1])d++;let mx=-1,p=-1;for(let i=d;i<L;i++)if(c[i]>mx){mx=c[i];p=i}
-  if(p<1||p>=L-1)return -1;const a=(c[p-1]+c[p+1]-2*c[p])/2,b=(c[p+1]-c[p-1])/2;const T=a?p-b/(2*a):p;
+  if(p<1||p>=L-1||mx<.55*c[0])return -1;
+  const a=(c[p-1]+c[p+1]-2*c[p])/2,b=(c[p+1]-c[p-1])/2;const T=a?p-b/(2*a):p;
   const f=sr/T;return f>150&&f<1200?f:-1;
 }
 function frame(t){
   const dt=Math.min(.1,(t-lastT)/1000);lastT=t;fm=null;
   if(listening&&an){an.getFloatTimeDomainData(buf);const f=detect(buf,ac.sampleRate);
     if(f>0){recent.push(f);if(recent.length>5)recent.shift();fm=[...recent].sort((a,b)=>a-b)[recent.length>>1]}else recent=[]}
+  $("lvl").style.width=Math.min(100,Math.sqrt(level/.05)*100)+"%";if(!listening)level=0;
   if(mode==="step")stepFrame(t,dt);else taktFrame(dt);
   requestAnimationFrame(frame);
 }
@@ -250,6 +257,7 @@ $("next").addEventListener("click",()=>{stopAll();go(1)});
 $("play").addEventListener("click",playAll);
 $("part").addEventListener("change",e=>{stopAll();stopRun();run=null;part=e.target.value;idx=range()[0];done.clear();hold=0;render()});
 $("key").addEventListener("change",e=>{stopRun();run=null;shift=+e.target.value;hold=0;render()});
+$("sens").addEventListener("change",e=>{sens=+e.target.value});
 $("tol").addEventListener("change",e=>{tolC=+e.target.value});
 $("tempo").addEventListener("change",()=>{stopRun();run=null});
 setMode("takt");requestAnimationFrame(frame);
