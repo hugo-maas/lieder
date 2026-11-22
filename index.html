@@ -80,7 +80,7 @@ const NAMES=["c","cis","d","es","e","f","fis","g","gis","a","b","h"];
 const nm=m=>NAMES[((m%12)+12)%12]+(m>=72?"''":"'");
 const $=id=>document.getElementById(id);
 const cv=$("cv"),ctx=cv.getContext("2d");
-let sens=.002,level=0,mode="takt",idx=0,shift=0,part="hi",tolC=70,done=new Set(),ac=null,listening=false,an=null,buf=null,muteUntil=0,hold=0,lastT=0,trail=[],recent=[],playing=false,timers=[],advancing=false,run=null,fm=null;
+let stepDone=false,sens=.002,level=0,mode="takt",idx=0,shift=0,part="hi",tolC=70,done=new Set(),ac=null,listening=false,an=null,buf=null,muteUntil=0,hold=0,lastT=0,trail=[],recent=[],playing=false,timers=[],advancing=false,run=null,fm=null;
 const range=()=>part==="hi"?[0,11]:[0,N.length];
 const tgt=()=>N[idx][0]+shift;
 const hz=m=>440*2**((m-69)/12);
@@ -91,7 +91,7 @@ function render(){
   $("lyr").innerHTML=h;$("tname").textContent=nm(tgt());
 }
 function setMode(m){
-  stopAll();stopRun();mode=m;hold=0;trail=[];
+  stopAll();stopRun();mode=m;hold=0;trail=[];stepDone=false;$("mic").textContent="Mitsingen starten";$("mic").classList.remove("on");
   $("tTakt").classList.toggle("sel",m==="takt");$("tStep").classList.toggle("sel",m==="step");
   $("rowTakt").hidden=m!=="takt";$("rowStep").hidden=m!=="step";$("tbox").hidden=m!=="step";
   $("hint").textContent=m==="takt"?"Auf Start tippen":"Tippe auf ein Wort";render();
@@ -130,15 +130,21 @@ function playAll(){
 }
 function go(d){const [a,b]=range();idx=Math.min(b-1,Math.max(a,idx+d));hold=0;render();playNote()}
 async function toggleMic(){
+  if(stepDone){stepDone=false;done.clear();idx=range()[0];hold=0;trail=[];render();$("mic").textContent="Mitsingen stoppen";$("mic").classList.add("on");playNote();return}
   if(listening&&mode==="step"&&$("mic").classList.contains("on")){$("mic").textContent="Mitsingen starten";$("mic").classList.remove("on");return}
   if(await micOn()){$("mic").textContent="Mitsingen stoppen";$("mic").classList.add("on");playNote()}
 }
 function success(){
   done.add(idx);advancing=true;ensure();tone(tgt()+12,ac.currentTime+.03,.1);tone(tgt()+19,ac.currentTime+.13,.14);render();
   const [,b]=range();
-  setTimeout(()=>{advancing=false;hold=0;if(idx<b-1){idx++;render();playNote()}else{$("hint").textContent="Geschafft – alle Sterne!";}},450);
+  setTimeout(()=>{advancing=false;hold=0;if(idx<b-1){idx++;render();playNote()}else finishStep()},450);
 }
 
+function finishStep(){
+  stepDone=true;$("mic").textContent="Nochmal von vorn";$("mic").classList.remove("on");
+  $("hint").textContent="Geschafft – alle Sterne! ★";
+  ensure();const t=ac.currentTime+.1,base=72+shift;[0,4,7,12].forEach((k,i)=>tone(base+k,t+i*.14,i<3?.16:.6,.2));
+}
 /* ---- Im Takt ---- */
 async function startRun(){
   if(run&&!run.over){stopRun();return}
@@ -255,7 +261,7 @@ $("again").addEventListener("click",()=>{stopAll();playNote()});
 $("prev").addEventListener("click",()=>{stopAll();go(-1)});
 $("next").addEventListener("click",()=>{stopAll();go(1)});
 $("play").addEventListener("click",playAll);
-$("part").addEventListener("change",e=>{stopAll();stopRun();run=null;part=e.target.value;idx=range()[0];done.clear();hold=0;render()});
+$("part").addEventListener("change",e=>{stopAll();stopRun();run=null;part=e.target.value;idx=range()[0];done.clear();hold=0;stepDone=false;if(mode==="step"){$("mic").textContent="Mitsingen starten";$("mic").classList.remove("on")}render()});
 $("key").addEventListener("change",e=>{stopRun();run=null;shift=+e.target.value;hold=0;render()});
 $("sens").addEventListener("change",e=>{sens=+e.target.value});
 $("tol").addEventListener("change",e=>{tolC=+e.target.value});
